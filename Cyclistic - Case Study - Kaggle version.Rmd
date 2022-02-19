@@ -1,0 +1,1156 @@
+---
+title: 'Cyclistic: Case Study'
+author: 'Author: Vittorio Dotti Ricagni'
+date: "24/1/2022"
+output:
+  html_document:
+    toc: TRUE
+subtitle: Google Data Analytics Capstone
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+----
+
+
+```{r Image, fig.align='center', out.width = "20%", echo = FALSE}
+
+library(knitr)       # to set printing figures properties
+
+#logo_path = "../input/companylogo/Logo.png"
+#include_graphics(logo_path)
+
+# Currently Not working
+
+```
+
+## **Cyclistic:** How Does a Bike-Share Navigate Speedy Success? 
+
+----
+
+## Introduction.
+
+**The Company**  
+A bike-share program that features more than 5,800 bicycles and 600 docking stations. It sets itself
+apart by also offering reclining bikes, hand tricycles, and cargo bikes, making bike-share more inclusive to people with disabilities and riders who can’t use a standard two-wheeled bike.
+
+**The Users**  
+Two different types of users are classified:
+
+* Casual. Customers who purchase single-ride or full-day passes.
+* Members. Customers who purchase annual memberships.
+
+**The Goal**  
+The Department of Marketing wants to design strategies aimed at converting casual riders into annual members. 
+
+
+**The Method**  
+In order to accomplish the goal, the Marketing Analyst team needs to better understand how annual members and casual riders differ, why casual riders would buy a membership, and how digital media could affect their marketing tactics.
+
+----
+
+## Business Task.
+
+We have to analyze historical trips data to identify characteristics, trends and connections regarding the bike usage from Members and Casual users.
+The results will be used by the stakeholders to develop and approve an appropriate marketing strategy. 
+
+**Stakeholders**  
+The stakeholders are:
+
+* Lily Moreno, director of Marketing.
+* Executive team.
+* Marketing Analytics team.
+
+----
+
+## Data Loading.
+
+The data has been made available by Motivate International Inc. under this [license](https://www.divvybikes.com/data-license-agreement).  
+This is public data that we can use to explore but data-privacy issues prohibit us from using riders’ personally identifiable information.  
+
+The data to analyze covers from January to December 2021 in more than 5 million records.
+It is reliable and can provide relevant information to the business task.
+
+
+### Package loading
+
+```{r Loading Packages, results="hide", error=FALSE, warning=FALSE, message=FALSE}
+
+# Load necessary packages (previously installed).
+
+library(tidyverse)   # to wrangle data
+library(dplyr)       # to manipulate data
+library(lubridate)   # to parse and manipulate dates
+library(sqldf)       # to perform SQL queries
+library(ggplot2)     # to visualize data
+library(cowplot)     # to improve visualizations
+library(wordcloud)   # to improve visualizations
+library(ggwordcloud) # to improve visualizations
+library(ggmap)       # to work with maps
+
+# Results hidden
+
+```  
+
+### Data loading
+
+```{r Loading Data}
+
+# Load original data.
+
+trips_2021_01 <- read.csv("../input/datos/202101-divvy-tripdata.csv")
+trips_2021_02 <- read.csv("../input/datos/202102-divvy-tripdata.csv")
+trips_2021_03 <- read.csv("../input/datos/202103-divvy-tripdata.csv")
+trips_2021_04 <- read.csv("../input/datos/202104-divvy-tripdata.csv")
+trips_2021_05 <- read.csv("../input/datos/202105-divvy-tripdata.csv")
+trips_2021_06 <- read.csv("../input/datos/202106-divvy-tripdata.csv")
+trips_2021_07 <- read.csv("../input/datos/202107-divvy-tripdata.csv")
+trips_2021_08 <- read.csv("../input/datos/202108-divvy-tripdata.csv")
+trips_2021_09 <- read.csv("../input/datos/202109-divvy-tripdata.csv")
+trips_2021_10 <- read.csv("../input/datos/202110-divvy-tripdata.csv")
+trips_2021_11 <- read.csv("../input/datos/202111-divvy-tripdata.csv")
+trips_2021_12 <- read.csv("../input/datos/202112-divvy-tripdata.csv")
+
+```
+
+----
+
+## Data Processing.
+
+### Check consistency
+
+```{r Check consistency}
+
+# Check column names
+
+colnames(trips_2021_01)
+colnames(trips_2021_02)
+colnames(trips_2021_03)
+colnames(trips_2021_04)
+colnames(trips_2021_05)
+colnames(trips_2021_06)
+colnames(trips_2021_07)
+colnames(trips_2021_08)
+colnames(trips_2021_09)
+colnames(trips_2021_10)
+colnames(trips_2021_11)
+colnames(trips_2021_12)
+
+# Check structure
+
+str(trips_2021_01)
+str(trips_2021_02)
+str(trips_2021_03)
+str(trips_2021_04)
+str(trips_2021_05)
+str(trips_2021_06)
+str(trips_2021_07)
+str(trips_2021_08)
+str(trips_2021_09)
+str(trips_2021_10)
+str(trips_2021_11)
+str(trips_2021_12)
+
+
+```
+
+### Conclusions so far:
+
+* Column names are consistent across all files.
+
+* Structure is consistent too. No incongruences were found. 
+
+* However, it could be necessary to adjust the type of some columns such as *started_at* and *ended_at* from `char` to `datetime`.
+
+First, and given the previous results, we can join the twelve data frames into a single one.
+
+```{r Join into one DF}
+
+trips_2021 <- bind_rows(trips_2021_01, trips_2021_02, trips_2021_03, trips_2021_04, trips_2021_05, trips_2021_06, trips_2021_07, trips_2021_08, trips_2021_09, trips_2021_10, trips_2021_11, trips_2021_12)
+
+```
+
+### Check new Data Frame
+
+```{r Check new DF trips_2021}
+
+colnames(trips_2021)  # column names
+nrow(trips_2021)      # qty of records
+dim(trips_2021)       # dimensions
+head(trips_2021)      # first rows
+str(trips_2021)       # structure
+summary(trips_2021)   # summary
+
+filter(trips_2021, rideable_type == "") %>%  # no rideable type registered
+  count()
+filter(trips_2021, started_at == "") %>%  # no starting time registered
+  count()
+filter(trips_2021, ended_at == "") %>%  # no ending time registered
+  count()
+filter(trips_2021, member_casual == "") %>%  # no member/casual registered
+  count()
+filter(trips_2021, start_station_id == "") %>%  # no start station id registered
+  count()
+filter(trips_2021, start_station_name == "") %>%  # no start station name registered
+  count()
+filter(trips_2021, end_station_id == "") %>%  # no end station id registered
+  count()
+filter(trips_2021, end_station_name == "") %>%  # no end station name registered
+  count()
+
+```
+
+### Some details:
+
+* More than 690000 rows with *start_station_id* and *start_station_name* unregistered.
+
+* More than 739000 rows with *end_station_id* and *end_station_name* unregistered.
+
+* More than 4700 rows with *end_lat* and *end_lng* unregistered. 
+
+* No rows with empty values of *rideable_type*, *started_at*, *ended_at* or *member_casual*.  
+
+----
+
+## Data Transformation and Cleaning.
+
+As mentioned before we want to convert the data type for *started_at* and *ended_at* from `char` to `datetime`.  
+Also, we need to create new columns for the sake of the analysis, such as:
+
+* *trip_duration* (ride length in minutes);
+
+* *month* (January, February, etc.);
+
+* *day_of_week* (Monday, Tuesday, etc.);
+
+* *time_of_day* (time of the day when trips start).
+
+
+```{r Data transformation}
+
+# Columns started_at and ended_at to datetime 
+
+trips_2021$started_at <- as_datetime(trips_2021$started_at)
+trips_2021$ended_at <- as_datetime(trips_2021$ended_at)
+
+# Trip duration in minutes
+
+trips_2021 <-  trips_2021 %>% 
+  mutate(trip_duration = difftime(trips_2021$ended_at, trips_2021$started_at, units="mins"))
+
+max(trips_2021$trip_duration) # longest trip
+min(trips_2021$trip_duration) # shortest trip
+
+filter(trips_2021, trip_duration <= 0) %>%  # trips with negative or zero duration
+  count()
+
+# Month
+
+trips_2021 <- trips_2021 %>% 
+  mutate(month = format(trips_2021$started_at, "%b"))
+
+trips_2021 <-  trips_2021 %>%               # convert to English without changing Date Local
+  mutate(month = recode(month,
+                        "Ene." = "Jan",
+                        "Feb." = "Feb",
+                        "Mar." = "Mar",
+                        "Abr." = "Apr",
+                        "May." = "May",
+                        "Jun." = "Jun",
+                        "Jul." = "Jul",
+                        "Ago." = "Aug",
+                        "Set." = "Sep",
+                        "Oct." = "Oct",
+                        "Nov." = "Nov",
+                        "Dic." = "Dec"))
+
+# Day of week
+
+trips_2021 <- trips_2021 %>% 
+  mutate(day_of_week = format(trips_2021$started_at, "%A"))
+
+trips_2021 <-  trips_2021 %>%               # convert to English without changing Date Local
+  mutate(day_of_week = recode(day_of_week,
+                              "lunes" = "Monday",
+                              "martes" = "Tuesday",
+                              "miércoles" = "Wednesday",
+                              "jueves" = "Thursday",
+                              "viernes" = "Friday",
+                              "sábado" = "Saturday",
+                              "domingo" = "Sunday"))
+
+# Time of the day (when trips start)
+
+trips_2021 <- trips_2021 %>% 
+  mutate(time_of_day = format(trips_2021$started_at, "%H:%M"))
+
+
+```
+
+### More details:
+
+The longest trip is about 38 days, and there are 653 trips with negative or zero duration.  
+This is added to the facts depicted in the previous section.  
+In real life we should check with the stakeholders and the data team to understand why this is happening.  
+Since we are not able to consult them, we have to make a decision. Hence:
+
+* trips with zero or negative duration will be removed because they have no sense or use;
+
+* the rest of the data will be kept for now, because we do not have enough information to establish an appropriate criterion to delete them or not.
+
+
+```{r Data Cleaning}
+
+# Drop NA
+
+trips <- drop_na(trips_2021) # new DF since data is being removed
+
+# Delete trips with zero or negative duration
+
+trips <- trips[!(trips$trip_duration <= 0),]
+
+filter(trips, trip_duration <= 0) %>%  # check trips with negative or zero duration = 0
+  count()
+
+```
+
+----
+
+## Data Analysis
+
+### Trip Duration and Number of Rides
+
+```{r Analysis on Trip Duration and Number of Rides, message=FALSE}
+
+# Trip Duration summary
+
+summary(as.numeric(trips$trip_duration))
+
+# Grouping by Member/Casual
+
+trips_mem_cas <- trips %>% group_by(member_casual) %>% drop_na()   # temporary variable
+trips_mem_cas %>% summarize(mean_duration=mean(trip_duration))     # mean comparison 
+trips_mem_cas %>% summarize(median_duration=median(trip_duration)) # median comparison 
+trips_mem_cas %>% summarize(max_duration=max(trip_duration))       # max value comparison 
+trips_mem_cas %>% summarize(min_duration=min(trip_duration))       # min value comparison 
+
+by_qty <- trips %>% 
+  group_by(member_casual) %>%   # quantity and duration comparison
+  summarise(number_of_rides = n(), average_duration = mean(trip_duration)) %>% 
+  mutate(percentage_of_rides = 100 * number_of_rides / sum(number_of_rides), "%") %>% 
+  print()
+  
+# Grouping by Member/Casual and Month
+
+by_month <- trips %>% 
+  group_by(member_casual, month) %>%
+  summarise(number_of_rides = n(), average_duration = mean(trip_duration)) %>%  # count trips and calculate avg duration by month
+  arrange(member_casual, -number_of_rides) %>% 
+  print(n = 24)
+
+# Grouping by Member/Casual and Day of week
+
+by_day <- trips %>% 
+  group_by(member_casual, day_of_week) %>%
+  summarise(number_of_rides = n(), average_duration = mean(trip_duration)) %>%  # count trips and calculate avg duration by day
+  arrange(member_casual, -number_of_rides) %>% 
+  print()
+
+# Grouping by Member/Casual and Time of day (hours - 00 to 23)
+
+by_time <- trips %>%    
+  mutate(hour_of_day = substr(time_of_day, 1, 2)) %>% 
+  group_by(member_casual, hour_of_day) %>%
+  summarise(number_of_rides = n(), average_duration = mean(trip_duration)) %>%  # count trips and calculate avg duration by hour
+  arrange(member_casual, -number_of_rides) %>% 
+  print(n=48)
+
+# Grouping by Member/Casual and Rideable Type
+
+by_rideable <- trips %>% 
+  group_by(member_casual, rideable_type) %>%
+  summarise(number_of_rides = n(), average_duration = mean(trip_duration)) %>%
+  arrange(member_casual, -number_of_rides) %>% 
+  print()
+
+```
+
+### Top 30 Starting Stations
+
+```{r Analysis on Starting Stations}
+
+# Casual users
+
+by_casual_start_st <- sqldf("SELECT start_station_name, COUNT(member_casual) AS casual_riders
+      FROM trips
+      WHERE start_station_name != '' and member_casual = 'casual' 
+      GROUP BY start_station_name
+      ORDER BY casual_riders DESC
+      LIMIT 30") %>% 
+  print()
+
+# Member users
+
+by_member_start_st <- sqldf("SELECT start_station_name, COUNT(member_casual) AS member_riders
+      FROM trips
+      WHERE start_station_name != '' and member_casual = 'member' 
+      GROUP BY start_station_name
+      ORDER BY member_riders DESC
+      LIMIT 30") %>% 
+  print()
+
+```
+
+
+----
+
+## Data Visualization
+
+
+```{r General parameters}
+
+# General parameters
+
+casual_color <- "#54d6b8" # green
+member_color <- "#ab54d6" # purple
+border_panel <- "grey"
+border_plot <- "grey"
+captions <- "Data from January to December 2021"
+
+theme_options <- theme(plot.caption.position = "plot",
+        plot.caption = element_text(hjust = 1), 
+        plot.title.position = "panel",
+        plot.title = element_text(hjust = 0.5),
+        panel.background = element_rect(color = border_panel),
+        plot.background = element_rect(color = border_plot))
+
+```
+
+### Trip Duration and Number of Rides Visuals
+
+
+```{r Visuals by qty and duration, fig.align = "center"}
+
+# Rides Distribution (percentage)
+
+ggplot(by_qty, aes(x=2, y=percentage_of_rides, fill=member_casual)) +
+  geom_bar(stat="identity", width=0.5, color="white", size=1) +
+  coord_polar(theta = "y", start=0) +
+  theme_void() +
+  labs(title="Rides Distribution", 
+       caption = captions, 
+       fill = "") +
+  scale_fill_manual(values = c(casual_color, member_color)) +
+  geom_label(aes(label = paste(member_casual, "\n", round(percentage_of_rides, 2), "%", sep="")),
+             color = "white",
+             size = 4.5,
+             label.size = 0,
+             position = position_stack(vjust = 0.5),
+             show.legend = FALSE) +
+   theme(plot.caption.position = "plot",
+        plot.caption = element_text(hjust = 1.18, margin = unit(c(0,1,2,0), "mm")), 
+        plot.title.position = "panel",
+        plot.title = element_text(hjust = 0.5, margin = unit(c(0.5,0,0,0), "cm")),
+        plot.margin = unit(c(0,1.5,0,1.5), "cm"),
+        plot.background = element_rect(color = border_plot),
+        legend.position = c(1, 0.3))    
+
+# By quantity
+
+plot_by_qty <- by_qty %>% 
+  ggplot() +
+  geom_col(aes(x = member_casual, y = number_of_rides, fill = member_casual), width = 0.5) +
+  labs(title="Total Number of Rides",
+       x="User",
+       y="Number of rides",
+       fill = "") +
+  scale_fill_manual(values = c(casual_color, member_color)) +
+  scale_y_continuous(expand = expansion(mult = c(0.01, 0.05))) +
+  theme(plot.caption.position = "plot",
+        plot.caption = element_text(hjust = 1),
+        plot.title.position = "panel",
+        plot.title = element_text(hjust = 0.5),
+        panel.background = element_rect(color = border_panel)) 
+
+# By duration
+
+plot_by_dur <- by_qty %>% 
+  ggplot() +  
+  geom_col(aes(x = member_casual, y = as.numeric(average_duration), fill = member_casual), width = 0.5) +
+  labs(title="Average Duration",
+       caption = captions, 
+       x="User",
+       y="Avg. duration (minutes)",
+       fill = "") +
+  scale_fill_manual(values = c(casual_color, member_color)) +
+  scale_y_continuous(expand = expansion(mult = c(0.01, 0.05))) +
+  theme(plot.caption.position = "plot",
+        plot.caption = element_text(hjust = 1),
+        plot.title.position = "panel",
+        plot.title = element_text(hjust = 0.5),
+        panel.background = element_rect(color = border_panel))
+
+# Plots together 
+
+plot_grid(plot_by_qty, plot_by_dur, ncol=2, align = "hv") +
+  panel_border(color = border_panel)
+
+```
+
+```{r Visuals of density, fig.align = "center"}
+
+# By Density
+
+less_than_120 <- select(filter(trips, trips$trip_duration < 120), member_casual, trip_duration) # to be able to visualize density
+
+ggplot(data=less_than_120, aes(x=as.numeric(trip_duration), group=member_casual, fill=member_casual)) +
+  geom_density(adjust=12, alpha=0.5) +
+  labs(title="Trip Duration Density by User",
+       caption = paste("*Considering only rides shorter than 120 minutes.", "\n\n", captions, sep=""), 
+       x="Trip duration (minutes)",
+       y="Density",
+       fill = "") +  
+  scale_fill_manual(values = c(casual_color, member_color)) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.05))) +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.00)), n.breaks = 12) +
+  theme_options
+
+## Please notice that the means shown in this figure are lower than those calculated earlier because we are now only considering a trip duration less than 120 minutes. ##
+
+```
+
+
+```{r Visuals by month, fig.align = "center"}
+
+# By month
+
+by_month$month <- factor(by_month$month, levels = month.abb) # months in chronological order
+
+by_month  %>% 
+  ggplot(aes(x = month, y = number_of_rides, fill = member_casual), width = 0.5) +
+  facet_wrap(~member_casual) +
+  geom_col(position = "dodge") +
+  
+  labs(title="Number of Rides by Month",
+       caption = captions, 
+       x="Month",
+       y="Number of rides",
+       fill = "") +
+  scale_fill_manual(values = c(casual_color, member_color)) + 
+  scale_y_continuous(expand = expansion(mult = c(0.01, 0.05))) +
+  theme(axis.text.x = element_text(angle = 50, vjust = 0.6)) + 
+  theme_options
+
+by_month  %>% 
+  ggplot(aes(x = month, y = as.numeric(average_duration), fill = member_casual), width = 0.5) +
+  facet_wrap(~member_casual) +
+  geom_col(position = "dodge") +
+  labs(title="Average Trip Duration by Month",
+       caption = captions, 
+       x="Month",
+       y="Avg. duration (minutes)",
+       fill = "") +
+  scale_fill_manual(values = c(casual_color, member_color)) + 
+  scale_y_continuous(expand = expansion(mult = c(0.01, 0.05))) +
+  theme(axis.text.x = element_text(angle = 50, vjust = 0.6)) + 
+  theme_options
+
+```
+
+```{r Visuals by day, fig.align = "center"}
+
+# By day of week
+
+by_day$day_of_week <- ordered(by_day$day_of_week, levels=c("Monday", "Tuesday", "Wednesday", "Thursday", 
+                                                  "Friday", "Saturday", "Sunday")) # days in chronological order
+
+by_day  %>% 
+  ggplot(aes(x = day_of_week, y = number_of_rides, fill = member_casual), width = 0.5) +
+  facet_wrap(~member_casual) +
+  geom_col(position = "dodge") +
+  labs(title="Number of Rides by Day",
+       caption = captions, 
+       x="Day of week",
+       y="Number of rides",
+       fill = "") +
+  scale_fill_manual(values = c(casual_color, member_color)) + 
+  scale_y_continuous(expand = expansion(mult = c(0.01, 0.05))) +
+  theme(axis.text.x = element_text(angle = 50, vjust = 0.6)) + 
+  theme_options
+
+by_day  %>% 
+  ggplot(aes(x = day_of_week, y = as.numeric(average_duration), fill = member_casual), width = 0.5) +
+  facet_wrap(~member_casual) +
+  geom_col(position = "dodge") +
+  labs(title="Average Trip Duration by Day",
+       caption = captions, 
+       x="Day of week",
+       y="Avg. duration (minutes)",
+       fill = "") +
+  scale_fill_manual(values = c(casual_color, member_color)) + 
+  scale_y_continuous(expand = expansion(mult = c(0.01, 0.05))) + 
+  theme(axis.text.x = element_text(angle = 50, vjust = 0.6)) + 
+  theme_options
+
+# Comparison in scatter plot
+
+by_day %>% 
+  ggplot(aes(x=day_of_week, y=as.numeric(average_duration), color=member_casual, alpha=0.8)) + 
+  geom_point(show.legend = c(size=FALSE, alpha=FALSE), shape=19, size=6) +
+  labs(title="Comparison: Average Trip Duration by Day",
+       caption = captions, 
+       x="Day of week",
+       y="Avg. duration (minutes)",
+       color = "") + 
+  scale_color_manual(values = c(casual_color, member_color)) +
+  scale_y_continuous(n.breaks = 6) +
+  theme_options
+
+```
+
+```{r Visuals by time of day, fig.align = "center"}
+
+# By time of day
+
+by_time <- arrange(by_time, member_casual, hour_of_day)
+
+by_time  %>% 
+  ggplot(aes(x = hour_of_day, y = number_of_rides, fill = member_casual), width = 0.5) +
+  facet_wrap(~member_casual) +
+  geom_col(position = "dodge") +
+  labs(title="Number of Rides by Hour",
+       caption = captions, 
+       x="Time of day",
+       y="Number of rides",
+       fill = "") +
+  scale_fill_manual(values = c(casual_color, member_color)) + 
+  scale_y_continuous(expand = expansion(mult = c(0.01, 0.05))) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.6)) + 
+  theme_options
+
+by_time  %>% 
+  ggplot(aes(x = hour_of_day, y = as.numeric(average_duration), fill = member_casual), width = 0.5) +
+  facet_wrap(~member_casual) +
+  geom_col(position = "dodge") +
+  labs(title="Average Trip Duration by Hour",
+       caption = captions, 
+       x="Time of day",
+       y="Avg. duration (minutes)",
+       fill = "") +
+  scale_fill_manual(values = c(casual_color, member_color)) + 
+  scale_y_continuous(expand = expansion(mult = c(0.01, 0.05))) + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.6)) + 
+  theme_options
+
+```
+
+```{r Visuals by Rideable, fig.align = "center"}
+
+# By rideable
+
+by_rideable <- by_rideable %>% 
+  mutate(rideable_type = recode(rideable_type,
+                                "classic_bike" = "classic",
+                                "docked_bike" = "docked",
+                                "electric_bike" = "electric"))
+                                
+plot_rideable_num <- by_rideable  %>% 
+  ggplot(aes(x = rideable_type, y = number_of_rides, fill = member_casual), width = 0.5) +
+  facet_wrap(~member_casual) +
+  geom_col(position = "dodge") +
+  labs(title="Number of Rides by Rideable",
+       x="Rideable type",
+       y="Number of rides",
+       fill = "") +
+  scale_fill_manual(values = c(casual_color, member_color)) + 
+  scale_y_continuous(expand = expansion(mult = c(0.01, 0.05))) +
+  theme(axis.text.x = element_text(angle = 50, vjust = 0.6)) +
+  theme(plot.caption.position = "plot",
+        plot.caption = element_text(hjust = 1),
+        plot.title.position = "panel",
+        plot.title = element_text(hjust = 0.5),
+        panel.background = element_rect(color = border_panel))
+
+plot_rideable_avg <- by_rideable  %>% 
+  ggplot(aes(x = rideable_type, y = as.numeric(average_duration), fill = member_casual), width = 0.5) +
+  facet_wrap(~member_casual) +
+  geom_col(position = "dodge") +
+  labs(title="Average Trip Duration by Rideable",
+       caption = captions, 
+       x="Rideable type",
+       y="Avg. duration (minutes)",
+       fill = "") +
+  scale_fill_manual(values = c(casual_color, member_color)) + 
+  scale_y_continuous(expand = expansion(mult = c(0.01, 0.05))) + 
+  theme(axis.text.x = element_text(angle = 50, vjust = 0.6)) +
+  theme(plot.caption.position = "plot",
+        plot.caption = element_text(hjust = 1),
+        plot.title.position = "panel",
+        plot.title = element_text(hjust = 0.5),
+        panel.background = element_rect(color = border_panel))
+
+plot_grid(plot_rideable_num, plot_rideable_avg, ncol=2, align = "hv") +
+  panel_border(color = border_panel)
+
+```
+
+```{r Visuals by Day and Rideable, fig.align = "center", message = FALSE}
+
+# By day and rideable
+
+by_day_rideable <- trips %>% 
+  group_by(member_casual, rideable_type, day_of_week) %>%
+  summarise(number_of_rides = n(), average_duration = mean(trip_duration)) %>%  
+  arrange(member_casual, rideable_type, -average_duration)
+
+by_day_rideable$day_of_week <- ordered(by_day_rideable$day_of_week, levels=c("Monday", "Tuesday", "Wednesday", "Thursday", 
+                                                           "Friday", "Saturday", "Sunday"))
+by_day_rideable <- by_day_rideable %>% 
+  mutate(rideable_type = recode(rideable_type,
+                                "classic_bike" = "classic",
+                                "docked_bike" = "docked",
+                                "electric_bike" = "electric"))
+
+# Average duration
+
+by_day_rideable %>% 
+  ggplot(aes(x=day_of_week, y=as.numeric(average_duration), color=member_casual, alpha=0.9, shape=rideable_type)) + 
+  geom_point(show.legend = c(size=FALSE, alpha=FALSE), size = 4) +
+  labs(title="Comparison: Average Trip Duration by Day and Rideable",
+       caption = captions, 
+       x="Day of week",
+       y="Avg. duration (minutes)",
+       color = "Color",
+       shape = "Shape") +  
+  scale_color_manual(values = c(casual_color, member_color)) +
+  scale_shape_manual(values = c(18, 15, 17)) +
+  scale_y_continuous(n.breaks = 6) +
+  theme_options
+
+# Number of rides
+
+by_day_rideable %>% 
+  ggplot(aes(x=day_of_week, y=number_of_rides, color=member_casual, alpha=0.9, shape=rideable_type)) +
+  geom_point(show.legend = c(size=FALSE, alpha=FALSE), size = 4) +
+  labs(title="Comparison: Number of Rides by Day and Rideable",
+       caption = captions, 
+       x="Day of week",
+       y="Number of rides",
+       color = "Color",
+       shape = "Shape") +  
+  scale_color_manual(values = c(casual_color, member_color)) +
+  scale_shape_manual(values = c(18, 15, 17)) +
+  theme_options
+
+```
+
+### Most used starting stations and starting positions
+
+```{r Wordclouds, fig.align = "center", out.width="100%"}
+
+# Wordclouds 
+
+set.seed(111)
+wc_cas <- ggplot(by_casual_start_st, aes(label = start_station_name, size = casual_riders)) +
+  geom_text_wordcloud(area_corr = TRUE, color = casual_color, alpha = seq(0.96,0.08,-0.03)) +
+  scale_size_area(max_size = 6) +
+  theme(panel.background = element_rect(color = "white", fill = "white"))
+
+set.seed(222)
+wc_mem <- ggplot(by_member_start_st, aes(label = start_station_name, size = member_riders, colors = member_color)) +
+  geom_text_wordcloud(area_corr = TRUE, color = member_color, alpha = seq(0.96,0.08,-0.03)) +
+  scale_size_area(max_size = 5.5) +
+  theme(panel.background = element_rect(color = "white", fill = "white"))
+
+
+plot_grid(wc_cas, wc_mem, ncol=2, align = "hv", rel_widths = c(1,1)) +
+  panel_border(color = "white")
+
+```
+
+```{r Visuals most used stations, fig.align = "center"}
+
+# Top ten stations - Casual users
+
+by_casual_start_st_10 <- sqldf("SELECT * FROM by_casual_start_st LIMIT 10")
+
+by_casual_start_st_10 %>% 
+  ggplot(aes(x = reorder(start_station_name, -casual_riders), y = casual_riders, fill = casual_color), width = 0.5) +
+  geom_col(position = "dodge", alpha = seq(0.92,0.2,-0.08)) +
+  labs(title="Top ten starting stations for Casual users",
+       caption = captions, 
+       x="Station",
+       y="Number of rides",
+       fill = "") +
+  scale_fill_manual(values = c(casual_color)) + 
+  scale_y_continuous(expand = expansion(mult = c(0.01, 0.05))) +
+  theme(axis.text.x = element_text(angle = 50, vjust = 0.6)) + 
+  theme(legend.position = "None", plot.margin = unit(c(5,8,5,8), "mm")) +
+  theme_options
+
+# Top ten stations - Member users
+
+by_member_start_st_10 <- sqldf("SELECT * FROM by_member_start_st LIMIT 10")
+
+by_member_start_st_10 %>% 
+  ggplot(aes(x = reorder(start_station_name, -member_riders), y = member_riders, fill = member_color), width = 0.5) +
+  geom_col(position = "dodge", alpha = seq(0.92,0.2,-0.08)) +
+  labs(title="Top 10 starting stations for Member users",
+       caption = captions, 
+       x="Station",
+       y="Number of rides",
+       fill = "") +
+  scale_fill_manual(values = c(member_color)) + 
+  scale_y_continuous(expand = expansion(mult = c(0.01, 0.05))) +
+  theme(axis.text.x = element_text(angle = 50, vjust = 0.6)) + 
+  theme(legend.position = "None", plot.margin = unit(c(5,8,5,8), "mm")) +
+  theme_options
+
+
+```
+
+
+```{r Analysis on Starting Positions, message=FALSE, fig.align = "center", fig.height = 9, fig.width = 9}
+
+# Top 30 Starting Positions
+
+trips_start_position <- trips %>% mutate(unite(trips, 'start_position', start_lat, start_lng, sep = ' '))
+
+by_casual_start_pos <- sqldf("SELECT start_lat, start_lng, start_position, member_casual, COUNT(member_casual) AS riders
+      FROM trips_start_position
+      WHERE member_casual = 'casual' 
+      GROUP BY start_position
+      ORDER BY riders DESC
+      LIMIT 30")
+
+by_member_start_pos <- sqldf("SELECT start_lat, start_lng, start_position, member_casual, COUNT(member_casual) AS riders
+      FROM trips_start_position
+      WHERE member_casual = 'member' 
+      GROUP BY start_position
+      ORDER BY riders DESC
+      LIMIT 30")
+
+by_start_position <- bind_rows(by_casual_start_pos, by_member_start_pos)
+
+# Map of Chicago
+
+chicago_map <- readRDS("../input/mapofchicago/mapofChicago.rds")
+
+ggmap(chicago_map, darken = c(0.5, "white")) +
+  geom_point(data = by_start_position,
+             aes(x = start_lng, y = start_lat, color=member_casual, size = riders),
+             alpha = .6) +
+  labs(title="Most popular starting positions",
+       caption = paste0("\n", captions),
+       color = "") +
+  scale_color_manual(values = c(casual_color, member_color)) +
+  scale_size_continuous(range = c(2,8)) +
+  theme_map() +
+  theme(plot.margin = unit(c(6,2,2,20), "mm"), 
+        plot.title = element_text(size = 13, vjust = 3.5, face = "plain"),
+        plot.caption = element_text(size=9),
+        legend.text = element_text(size=10.5, vjust = 0.7)) +
+  guides(size = "none", color = guide_legend(override.aes = list(size=4))) +
+  theme_options 
+  
+```
+
+----
+
+## In Summary
+
+* **Number of rides.**
+    - *Casual users*. 45.2 % of total trips.
+    - *Member users*. 54.8 % of total trips.  
+ 
+* **Trip duration.**
+    - *Casual users*. About 30 minutes average, with wide density.
+    - *Member users*. About 13 minutes average, with narrower density.
+
+* **Months.**
+    - *Casual users*. More number of rides in July, August and June. Average trip duration varies throughout the year.
+    - *Member users*. More number of rides in September, August and July. Average trip duration is more uniform throughout all months.  
+
+* **Day of week.**
+    - *Casual users*. Higher number of rides and longer average trip duration on weekends.
+    - *Member users*. Number of rides more uniform, slightly lower on weekends. Average trip duration more uniform, slightly higher on weekends.  
+
+* **Time of day.**  
+
+    No significant differences between both type of users, except the average trip duration remains more uniform throughout the day for Member users.
+
+* **Rideable type.**
+    - *Casual users*. Higher number of rides with classic bikes. Longer average trip duration with docked bikes. On weekends the number of rides increases more for classic bikes than for the other types.
+    - *Member users*. Higher number of rides with classic bikes. Longer average trip duration too but similar to electric rides. No use of docked bikes.  
+
+* **Starting stations.**  
+
+    Most used stations are not the same for Casual and Member users.  
+    The respective stations where users start their rides are as follows.
+
+```{r Table 1 - Top 30 stations, echo = FALSE, fig.align = "center", out.width="90%"}
+
+# Table 1 - Starting stations
+
+stations_table <- data.frame(select(by_casual_start_st, Casual = start_station_name), 
+                             select(by_member_start_st, Member = start_station_name))
+kable(stations_table, caption = "Table I. Top 30 starting stations.")
+
+```
+
+* **Starting Latitude/Longitude.**  
+    Similarly to starting stations, the most popular starting coordinates are not the same for both groups.
+    
+    We make this differentiation (station/position) because not every record has the station name information and it is possible that there are trips that do not start in a station, depending on how a trip is defined.  
+
+----
+
+## Insights and Recommendations
+
+* It can be seen that nearly half of the trips are from Casual users. This means that there is an opportunity to carry out the proposed strategy, that is, to turn Casual users into Members.
+
+* The information above suggests that differences in trip characteristics between Casual and Member users could be explained by tourism and leisure rides, mostly among Casual users, while Members tend to mainly use bikes to commute or as transportation.
+
+* Thus, users who can be targeted for trying to become Members should be those with similar trip habits as Members. 
+
+* Therefore, the company needs to focus on Casual users whose trips have similar characteristics to the following:  
+
+    * Short duration. Less than 20 minutes. 
+    * On weekdays. Specifically on Monday to Thursday (to avoid the tourism factor as much as possible).
+    * In all months except July and August (for the same reason as before).
+    * Classic or electric bikes.  
+
+* Another way to identify or to find these target users is by location, looking at the starting stations and starting coordinates where Casual and Member user trips concur (matching starting stations and starting positions), specifically considering trips on Monday to Thursday.  
+
+* As a way to encourage annual subscriptions, the company could offer different promotions and discounts to target users. For example, in the fall and winter seasons, agreements with coffee shops to give free or discounted hot coffee to Member users could be a nice and attractive detail. 
+
+* The advertising campaign should emphasize the importance and benefits of exercising outdoors, caring for the environment and, secondarily, the use of bicycles as a means of avoiding traffic jams during peak hours.
+
+* For future analysis additional data could be collected, such as riders age and purpose of the trip for Casual users, or purpose of the membership for Members.
+
+----
+
+## Where to find the target users
+
+### Trip conditions
+
+The main starting stations and starting positions where the greatest number of trips by Casual users meet the conditions described in the previous section are detailed below.
+
+
+```{r Target Audience, fig.align = "center", fig.height = 9, fig.width = 9}
+
+# Starting stations for Target Casual users
+
+target_casual_st <- sqldf("SELECT start_station_name, COUNT(member_casual) AS rides
+      FROM trips
+      WHERE member_casual = 'casual' AND 
+        start_station_name != '' AND
+        rideable_type != 'docked_bike' AND
+        trip_duration < 20 AND
+        (day_of_week = 'Monday' OR
+        day_of_week = 'Tuesday' OR
+        day_of_week = 'Wednesday' OR
+        day_of_week = 'Thursday') AND
+        (month != 'July' AND month != 'August')
+      GROUP BY start_station_name
+      ORDER BY rides DESC
+      LIMIT 30")
+
+# Table 2 - Starting stations for Target Casual users
+
+target_casual_table <- data.frame(select(target_casual_st, Stations = start_station_name))
+kable(target_casual_table, caption = "Table II. Top 30 starting stations for Target Casual users.")
+
+# Starting positions for Target Casual users
+
+target_casual_pos <- sqldf("SELECT start_lat, start_lng, start_position, COUNT(member_casual) AS rides
+      FROM trips_start_position
+      WHERE member_casual = 'member' AND 
+        start_position != '' AND
+        rideable_type != 'docked_bike' AND
+        trip_duration < 20 AND
+        (day_of_week = 'Monday' OR
+        day_of_week = 'Tuesday' OR
+        day_of_week = 'Wednesday' OR
+        day_of_week = 'Thursday') AND
+        (month != 'July' AND month != 'August')
+      GROUP BY start_position
+      ORDER BY rides DESC
+      LIMIT 30") 
+
+# Map + Wordcloud 
+
+plot_target_pos <- ggmap(chicago_map, darken = c(0.4, "black")) +
+  geom_point(data = target_casual_pos,
+             aes(x = start_lng, y = start_lat, size = rides),
+             color = casual_color,
+             alpha = .6) +
+  labs(caption = paste0("\n", captions)) +
+  scale_size_continuous(range = c(2,8)) +
+  theme_map() +
+  guides(size = "none") +
+  theme(plot.caption = element_text(hjust = 1.6, size = 10))
+
+set.seed(333)
+wc_target_pos <- ggplot(target_casual_st, aes(label = start_station_name, size = rides)) +
+  geom_text_wordcloud(area_corr = TRUE, color = casual_color, alpha = seq(0.96,0.08,-0.03)) +
+  scale_size_area(max_size = 7) +
+  theme(panel.background = element_rect(color = "white", fill = "white"))
+
+plot_title <- ggdraw() +
+  draw_label("Most popular starting stations and positions for Target Users",
+             fontface = 'plain') 
+
+plot_grid(NULL, plot_title, wc_target_pos, plot_target_pos, nrow=4, align = "hv", 
+          rel_heights = c(0.05, 0.05, 0.5, 1)) +
+  panel_border(color = border_panel)  
+
+## Please notice that stations and positions do not necessarily match ##
+
+```
+
+
+### Casual/Member matching starting stations and starting position 
+
+Even though preferred starting stations and starting positions differ between Casual and Member users, there are several in common, as shown below.  
+In this case the 40 most popular starting stations and positions for Casual users are compared to the 30 most popular stations and 20 most popular starting positions for Members, considering only trips on Monday to Thursday.
+
+
+```{r Matching starts Monday to Thursday, fig.align = "center", fig.height = 9, fig.width = 9}
+
+# Matching starting stations
+
+casual_start_st_mon_thu <- sqldf("SELECT start_station_name, COUNT(member_casual) AS riders
+      FROM trips
+      WHERE start_station_name != '' AND member_casual = 'casual' AND
+      (day_of_week = 'Monday' OR
+        day_of_week = 'Tuesday' OR
+        day_of_week = 'Wednesday' OR
+        day_of_week = 'Thursday')
+      GROUP BY start_station_name
+      ORDER BY riders DESC
+      LIMIT 40")   # 40 most popular
+
+member_start_st_mon_thu <- sqldf("SELECT start_station_name, COUNT(member_casual) AS riders
+      FROM trips
+      WHERE start_station_name != '' AND member_casual = 'member' AND
+      (day_of_week = 'Monday' OR
+        day_of_week = 'Tuesday' OR
+        day_of_week = 'Wednesday' OR
+        day_of_week = 'Thursday')
+      GROUP BY start_station_name
+      ORDER BY riders DESC
+      LIMIT 30")   # 30 most popular
+
+st_left <- casual_start_st_mon_thu
+st_right <- member_start_st_mon_thu
+
+st_join <- sqldf('SELECT st_left.start_station_name, st_left.riders AS casual_rides, st_right.riders AS member_rides
+      FROM st_left 
+      INNER JOIN st_right 
+      ON st_left.start_station_name = st_right.start_station_name')
+
+# Table 3 - Starting stations in common
+
+match_st_table <- data.frame(select(st_join, "Stations" = start_station_name))
+kable(match_st_table, caption = "Table III. Top 15 starting stations in common.")
+
+# Matching starting positions
+
+casual_start_pos_mon_thu <- sqldf("SELECT start_lat, start_lng, start_position, COUNT(member_casual) AS riders
+      FROM trips_start_position
+      WHERE member_casual = 'casual' AND 
+        (day_of_week = 'Monday' OR
+        day_of_week = 'Tuesday' OR
+        day_of_week = 'Wednesday' OR
+        day_of_week = 'Thursday')
+      GROUP BY start_position
+      ORDER BY riders DESC
+      LIMIT 40")   # 40 most popular
+
+member_start_pos_mon_thu <- sqldf("SELECT start_lat, start_lng, start_position, COUNT(member_casual) AS riders
+      FROM trips_start_position
+      WHERE member_casual = 'member' AND 
+        (day_of_week = 'Monday' OR
+        day_of_week = 'Tuesday' OR
+        day_of_week = 'Wednesday' OR
+        day_of_week = 'Thursday')
+      GROUP BY start_position
+      ORDER BY riders DESC
+      LIMIT 20")  # 20 most popular
+
+pos_left <- casual_start_pos_mon_thu
+pos_right <- member_start_pos_mon_thu
+pos_join <- sqldf('SELECT pos_left.start_position, pos_left.start_lat, pos_left.start_lng, 
+        pos_left.riders AS casual_rides, pos_right.riders AS member_rides
+      FROM pos_left 
+      INNER JOIN pos_right 
+      ON pos_left.start_position = pos_right.start_position')
+
+# Map + Wordcloud 
+
+plot_mon_thu <- ggmap(chicago_map, darken = c(0.4, "black")) +
+  geom_point(data = pos_join,
+             aes(x = start_lng, y = start_lat, size = casual_rides),
+             color = casual_color,
+             alpha = .6) +
+  labs(caption = paste0("\n", captions)) +
+  scale_size_continuous(range = c(2,8)) +
+  theme_map() +
+  guides(size = "none") +
+  theme(plot.caption = element_text(hjust = 1.6, size = 10), )
+
+set.seed(333)
+wc_cas_mon_thu <- ggplot(st_join, aes(label = start_station_name, size = casual_rides)) +
+  geom_text_wordcloud(area_corr = TRUE, color = casual_color, alpha = seq(0.96,0.08,-0.06)) +
+  scale_size_area(max_size = 8) +
+  theme(panel.background = element_rect(color = "white", fill = "white"))
+
+plot_title <- ggdraw() +
+  draw_label(paste0("Most popular starting stations and positions for Casual users", "\n", 
+                    "matching most popular ones for Member users (Monday to Thursday)"),
+             fontface = 'plain') 
+
+plot_grid(NULL, plot_title, wc_cas_mon_thu, plot_mon_thu, nrow=4, align = "hv", 
+          rel_heights = c(0.08, 0.05, 0.5, 1)) +
+  panel_border(color = border_panel)  
+
+## Please notice that stations and positions do not necessarily match ##
+
+```
+
+----
+
+## Thanks
+
+Thank you for reading!
+
+This is my first work, your comments and suggestions will be greatly appreciated!
+
+
+----
+
+## Packages Citation
+
+Following packages were used.
+
+```{r Citations}
+
+# Citations
+
+citation("knitr")
+citation("tidyverse")
+citation("dplyr") 
+citation("lubridate")
+citation("sqldf") 
+citation("ggplot2") 
+citation("cowplot") 
+citation("wordcloud")
+citation("ggwordcloud")
+citation("ggmap")
+
+```
+
+----
